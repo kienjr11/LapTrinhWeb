@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mini Task Manager</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-content">
+      <div>
+        <h1>Mini Task Manager</h1>
+        <p>Bài kiểm thực hành HTML, CSS, JavaScript</p>
+      </div>
+      <div class="task-stats" id="task-stats">
+        <!-- Thống kê số lượng task -->
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Form thêm công việc -->
+    <section class="card">
+      <h2>Thêm công việc mới</h2>
+      <form id="task-form" novalidate>
+        <div class="form-group">
+          <label for="task-title">Tên công việc <span class="required">*</span></label>
+          <input type="text" id="task-title" placeholder="Nhập tên công việc cần làm..." autocomplete="off">
+          <small class="error-msg" id="error-msg"></small>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="task-date">Hạn hoàn thành (dd/mm/yyyy)</label>
+            <input type="text" id="task-date" placeholder="dd/mm/yyyy" onfocus="(this.type='date')" onblur="if(!this.value)this.type='text'">
+          </div>
+
+          <div class="form-group">
+            <label for="task-priority">Mức ưu tiên</label>
+            <select id="task-priority">
+              <option value="Cao">Cao</option>
+              <option value="Trung bình" selected>Trung bình</option>
+              <option value="Thấp">Thấp</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Thêm công việc</button>
+      </form>
+    </section>
+
+    <!-- Ô tìm kiếm và bộ lọc trạng thái -->
+    <section class="card filter-section">
+      <div class="search-wrapper">
+        <input type="text" id="search-input" placeholder="Tìm kiếm theo tên công việc...">
+        <button type="button" id="clear-search" class="btn-clear" aria-label="Xóa tìm kiếm" hidden>&times;</button>
+      </div>
+      <div class="filter-buttons">
+        <button class="btn btn-filter active" data-filter="all">Tất cả</button>
+        <button class="btn btn-filter" data-filter="pending">Chưa xong</button>
+        <button class="btn btn-filter" data-filter="completed">Đã xong</button>
+      </div>
+    </section>
+
+    <!-- Vùng hiển thị danh sách công việc -->
+    <section class="card">
+      <h2>Danh sách công việc</h2>
+      <ul id="task-list" class="task-list">
+        <!-- Nội dung được render tự động từ script.js -->
+      </ul>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    Sinh viên: <strong>Đỗ Trung Kiên</strong> &nbsp;|&nbsp; MSSV: <strong>224001727</strong> &nbsp;|&nbsp; Lớp : <strong>TUD D2024</strong>
+  </footer>
+</body>
+</html>
