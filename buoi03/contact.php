@@ -2,11 +2,13 @@
 // Khởi tạo các biến lưu trữ giá trị nhập và lỗi cho từng trường
 $hoTen = "";
 $email = "";
+$ngaySinh = ""; // Thêm biến ngày sinh
 $subject = "Hỗ trợ kỹ thuật";
 $content = "";
 
 $errHoTen = "";
 $errEmail = "";
+$errNgaySinh = ""; // Thêm lỗi ngày sinh
 $errContent = "";
 $errAvatar = "";
 $successMessage = "";
@@ -17,6 +19,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     // 1. Chuẩn hóa và lấy dữ liệu
     $hoTen = trim($_POST['ho_ten'] ?? '');
     $email = trim($_POST['email'] ?? '');
+    $ngaySinh = trim($_POST['ngay_sinh'] ?? ''); // Lấy dữ liệu ngày sinh
     $subject = $_POST['subject'] ?? 'Hỗ trợ kỹ thuật';
     $content = trim($_POST['content'] ?? '');
 
@@ -37,7 +40,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $hasError = true;
     }
 
-    // 4. Validate Nội dung (không rỗng, từ 10 đến 500 ký tự)
+    // 4. Validate Ngày sinh (Bắt buộc, đúng định dạng YYYY-MM-DD và không được là ngày trong tương lai)
+    if ($ngaySinh === '') {
+        $errNgaySinh = "Ngày sinh không được để trống!";
+        $hasError = true;
+    } else {
+        // Tách chuỗi theo định dạng Y-m-d để kiểm tra tính hợp lệ của ngày tháng thực tế (ví dụ: tránh ngày 31/02)
+        $parts = explode('-', $ngaySinh);
+        if (count($parts) === 3 && checkdate((int)$parts[1], (int)$parts[2], (int)$parts[0])) {
+            $dateObj = DateTime::createFromFormat('Y-m-d', $ngaySinh);
+            $currentDate = new DateTime();
+            if ($dateObj > $currentDate) {
+                $errNgaySinh = "Ngày sinh không thể lớn hơn ngày hiện tại!";
+                $hasError = true;
+            }
+        } else {
+            $errNgaySinh = "Ngày sinh không đúng định dạng (YYYY-MM-DD)!";
+            $hasError = true;
+        }
+    }
+
+    // 5. Validate Nội dung (không rỗng, từ 10 đến 500 ký tự)
     if ($content === '') {
         $errContent = "Nội dung không được để trống!";
         $hasError = true;
@@ -46,7 +69,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $hasError = true;
     }
 
-    // 5. Validate File Upload Ảnh đại diện (Bắt buộc)
+    // 6. Validate File Upload Ảnh đại diện (Bắt buộc, kiểm tra kỹ 3 điều kiện + MIME type)
     if (!isset($_FILES['avatar']) || $_FILES['avatar']['error'] === UPLOAD_ERR_NO_FILE) {
         $errAvatar = "Vui lòng chọn ảnh đại diện!";
         $hasError = true;
@@ -56,30 +79,41 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $errAvatar = "Đã xảy ra lỗi khi tải tệp lên!";
             $hasError = true;
         } else {
-            // Giới hạn dung lượng tối đa 2MB
+            // Điều kiện 1: Kiểm tra kích thước tối đa (2MB)
             $maxSize = 2 * 1024 * 1024;
             if ($file['size'] > $maxSize) {
                 $errAvatar = "Kích thước ảnh không được vượt quá 2MB!";
                 $hasError = true;
             } else {
+                // Điều kiện 2: Kiểm tra định dạng phần mở rộng (extension) và MIME type thực tế
                 $allowedExtensions = ['jpg', 'jpeg', 'png', 'gif'];
+                $allowedMimeTypes = ['image/jpeg', 'image/png', 'image/gif'];
+
                 $fileExtension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-                if (!in_array($fileExtension, $allowedExtensions)) {
-                    $errAvatar = "Chỉ chấp nhận định dạng ảnh: jpg, jpeg, png, gif!";
+                
+                // Kiểm tra bằng finfo để lấy MIME type chuẩn từ nội dung thực của file (chống upload file giả mạo đuôi)
+                $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                $mimeType = finfo_file($finfo, $file['tmp_name']);
+                finfo_close($finfo);
+
+                if (!in_array($fileExtension, $allowedExtensions) || !in_array($mimeType, $allowedMimeTypes)) {
+                    $errAvatar = "Chỉ chấp nhận tệp ảnh hợp lệ (jpg, jpeg, png, gif)!";
                     $hasError = true;
                 }
             }
         }
     }
 
-    // 6. Nếu không có lỗi, tiến hành xử lý lưu file và thông báo thành công
+    // 7. Nếu không có lỗi, tiến hành xử lý tạo tên file an toàn, lưu file và thông báo thành công
     if (!$hasError) {
         $uploadDir = "uploads/";
         if (!is_dir($uploadDir)) {
             mkdir($uploadDir, 0777, true);
         }
 
-        $newFileName = uniqid('avatar_', true) . '.' . strtolower(pathinfo($_FILES['avatar']['name'], PATHINFO_EXTENSION));
+        // Điều kiện 3: Tạo tên file mới an toàn (dùng uniqid kết hợp với extension chuẩn hóa)
+        $fileExtension = strtolower(pathinfo($_FILES['avatar']['name'], PATHINFO_EXTENSION));
+        $newFileName = uniqid('avatar_', true) . '.' . $fileExtension;
         $destination = $uploadDir . $newFileName;
 
         if (move_uploaded_file($_FILES['avatar']['tmp_name'], $destination)) {
@@ -96,7 +130,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>Bài 3.9 - Form liên hệ an toàn</title>
+    <title>Bài 3.9 - Form liên hệ an toàn (Bổ sung Ngày sinh & Upload chuẩn)</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; background-color: #f7f9fa; }
         .container { width: 520px; background: #fff; border: 1px solid #e1e4e8; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin: auto; }
@@ -106,6 +140,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         .form-group label { display: block; margin-bottom: 6px; font-weight: bold; color: #333; font-size: 14px; }
         .form-group input[type="text"],
         .form-group input[type="email"],
+        .form-group input[type="date"],
         .form-group select,
         .form-group textarea {
             width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ced4da; border-radius: 4px; font-size: 14px;
@@ -130,6 +165,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <b><?php echo htmlspecialchars($successMessage, ENT_QUOTES, 'UTF-8'); ?></b><br>
             - Họ tên: <?php echo htmlspecialchars($hoTen, ENT_QUOTES, 'UTF-8'); ?><br>
             - Email: <?php echo htmlspecialchars($email, ENT_QUOTES, 'UTF-8'); ?><br>
+            - Ngày sinh: <?php echo htmlspecialchars($ngaySinh, ENT_QUOTES, 'UTF-8'); ?><br>
             - Chủ đề: <?php echo htmlspecialchars($subject, ENT_QUOTES, 'UTF-8'); ?><br>
             - Nội dung: <?php echo htmlspecialchars($content, ENT_QUOTES, 'UTF-8'); ?><br>
             - Ảnh đại diện:<br>
@@ -141,7 +177,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     <form method="POST" action="" enctype="multipart/form-data">
         <div class="form-group">
             <label for="ho_ten">Họ tên</label>
-            <!-- Giữ lại dữ liệu đã nhập bằng htmlspecialchars -->
             <input type="text" id="ho_ten" name="ho_ten" value="<?php echo htmlspecialchars($hoTen, ENT_QUOTES, 'UTF-8'); ?>" placeholder="Ví dụ: Đỗ Trung Kiên">
             <?php if ($errHoTen !== ""): ?>
                 <span class="error-text"><?php echo htmlspecialchars($errHoTen, ENT_QUOTES, 'UTF-8'); ?></span>
@@ -153,6 +188,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <input type="email" id="email" name="email" value="<?php echo htmlspecialchars($email, ENT_QUOTES, 'UTF-8'); ?>" placeholder="name@example.com">
             <?php if ($errEmail !== ""): ?>
                 <span class="error-text"><?php echo htmlspecialchars($errEmail, ENT_QUOTES, 'UTF-8'); ?></span>
+            <?php endif; ?>
+        </div>
+
+        <div class="form-group">
+            <label for="ngay_sinh">Ngày sinh</label>
+            <input type="date" id="ngay_sinh" name="ngay_sinh" value="<?php echo htmlspecialchars($ngaySinh, ENT_QUOTES, 'UTF-8'); ?>">
+            <?php if ($errNgaySinh !== ""): ?>
+                <span class="error-text"><?php echo htmlspecialchars($errNgaySinh, ENT_QUOTES, 'UTF-8'); ?></span>
             <?php endif; ?>
         </div>
 
